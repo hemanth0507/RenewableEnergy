@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>India Renewable Energy Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+
+:root {
+  --bg: #0b0f1a;
+  --surface: #131929;
+  --surface2: #1a2238;
+  --border: rgba(255,255,255,0.07);
+  --text: #e8edf5;
+  --muted: #6b7a99;
+  --solar: #f5a623;
+  --wind: #4ecdc4;
+  --hydro: #4a9eff;
+  --nuclear: #b06ef3;
+  --solar-dim: rgba(245,166,35,0.12);
+  --wind-dim: rgba(78,205,196,0.12);
+  --hydro-dim: rgba(74,158,255,0.12);
+  --nuclear-dim: rgba(176,110,243,0.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── NOISE OVERLAY ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── HEADER ── */
+header {
+  position: relative;
+  padding: 60px 5% 50px;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+
+header::after {
+  content: 'ENERGY';
+  position: absolute;
+  right: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(80px, 14vw, 180px);
+  color: rgba(255,255,255,0.025);
+  letter-spacing: 8px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.header-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+header h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(36px, 6vw, 72px);
+  letter-spacing: 2px;
+  line-height: 1;
+  background: linear-gradient(135deg, #e8edf5 0%, #6b7a99 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.header-sub {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 300;
+  max-width: 420px;
+}
+
+.total-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 100px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.total-badge span {
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* ── MAIN LAYOUT ── */
+main {
+  position: relative;
+  z-index: 1;
+  padding: 40px 5%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ── STAT STRIP ── */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  margin-bottom: 40px;
+  background: var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.stat-item {
+  background: var(--surface);
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: background 0.2s;
+}
+
+.stat-item:hover { background: var(--surface2); }
+
+.stat-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-bottom: 6px;
+}
+
+.stat-value {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+/* ── ENERGY GRID ── */
+.energy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: transform 0.3s ease, border-color 0.3s ease;
+  cursor: default;
+  position: relative;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.card:hover { transform: translateY(-3px); }
+.card:hover::before { opacity: 1; }
+
+.card[data-type="solar"]::before { background: var(--solar); }
+.card[data-type="wind"]::before { background: var(--wind); }
+.card[data-type="hydro"]::before { background: var(--hydro); }
+.card[data-type="nuclear"]::before { background: var(--nuclear); }
+
+.card[data-type="solar"]:hover { border-color: rgba(245,166,35,0.3); }
+.card[data-type="wind"]:hover  { border-color: rgba(78,205,196,0.3); }
+.card[data-type="hydro"]:hover { border-color: rgba(74,158,255,0.3); }
+.card[data-type="nuclear"]:hover { border-color: rgba(176,110,243,0.3); }
+
+.card-inner { padding: 28px; }
+
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.card-icon {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+
+.card[data-type="solar"] .card-icon { background: var(--solar-dim); }
+.card[data-type="wind"] .card-icon  { background: var(--wind-dim); }
+.card[data-type="hydro"] .card-icon { background: var(--hydro-dim); }
+.card[data-type="nuclear"] .card-icon { background: var(--nuclear-dim); }
+
+.card-capacity {
+  text-align: right;
+}
+
+.capacity-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.card[data-type="solar"] .capacity-num { color: var(--solar); }
+.card[data-type="wind"] .capacity-num  { color: var(--wind); }
+.card[data-type="hydro"] .capacity-num { color: var(--hydro); }
+.card[data-type="nuclear"] .capacity-num { color: var(--nuclear); }
+
+.capacity-unit {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.card h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 1.5px;
+  margin-bottom: 6px;
+}
+
+.card p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  font-weight: 300;
+}
+
+/* ── PROGRESS BAR ── */
+.progress-wrap {
+  margin-top: 20px;
+}
+
+.progress-track {
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 1s cubic-bezier(0.4,0,0.2,1);
+}
+
+.card[data-type="solar"] .progress-fill { background: var(--solar); width: 88%; }
+.card[data-type="wind"] .progress-fill  { background: var(--wind);  width: 52%; }
+.card[data-type="hydro"] .progress-fill { background: var(--hydro); width: 54%; }
+.card[data-type="nuclear"] .progress-fill { background: var(--nuclear); width: 8%; }
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+/* ── BUTTONS ── */
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.btn {
+  flex: 1;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  transition: all 0.2s;
+  background: transparent;
+  color: var(--muted);
+}
+
+.btn:hover {
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  border-color: rgba(255,255,255,0.15);
+}
+
+.btn-primary {
+  color: var(--text);
+  background: rgba(255,255,255,0.05);
+}
+
+.card[data-type="solar"] .btn-primary { border-color: rgba(245,166,35,0.4); color: var(--solar); }
+.card[data-type="wind"] .btn-primary  { border-color: rgba(78,205,196,0.4); color: var(--wind); }
+.card[data-type="hydro"] .btn-primary { border-color: rgba(74,158,255,0.4); color: var(--hydro); }
+.card[data-type="nuclear"] .btn-primary { border-color: rgba(176,110,243,0.4); color: var(--nuclear); }
+
+.card[data-type="solar"] .btn-primary:hover { background: var(--solar-dim); }
+.card[data-type="wind"] .btn-primary:hover  { background: var(--wind-dim); }
+.card[data-type="hydro"] .btn-primary:hover { background: var(--hydro-dim); }
+.card[data-type="nuclear"] .btn-primary:hover { background: var(--nuclear-dim); }
+
+/* ── DETAILS PANEL ── */
+.details-panel {
+  display: none;
+  border-top: 1px solid var(--border);
+  padding: 18px 28px;
+  background: rgba(0,0,0,0.2);
+  animation: slideDown 0.25s ease;
+}
+
+.details-panel.open { display: block; }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.detail-row strong {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.detail-row p { color: var(--text); font-weight: 300; }
+
+/* ── MAP SECTION ── */
+.map-section {
+  margin-top: 16px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.map-header {
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.map-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+}
+
+.map-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 6px 14px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-btn:hover, .filter-btn.active {
+  background: rgba(255,255,255,0.07);
+  color: var(--text);
+  border-color: rgba(255,255,255,0.2);
+}
+
+.filter-btn[data-map="solar"].active  { color: var(--solar); border-color: rgba(245,166,35,0.5); background: var(--solar-dim); }
+.filter-btn[data-map="wind"].active   { color: var(--wind);  border-color: rgba(78,205,196,0.5); background: var(--wind-dim); }
+.filter-btn[data-map="hydro"].active  { color: var(--hydro); border-color: rgba(74,158,255,0.5); background: var(--hydro-dim); }
+.filter-btn[data-map="nuclear"].active { color: var(--nuclear); border-color: rgba(176,110,243,0.5); background: var(--nuclear-dim); }
+
+.map-frame-wrap { position: relative; }
+
+.map-frame-wrap iframe {
+  width: 100%;
+  height: 440px;
+  border: 0;
+  display: block;
+  filter: grayscale(0.3) brightness(0.85);
+}
+
+/* ── FOOTER ── */
+footer {
+  margin-top: 60px;
+  padding: 24px 5%;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.footer-brand {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+
+.footer-note {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .energy-grid { grid-template-columns: 1fr; }
+  .stat-strip  { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .stat-strip { grid-template-columns: 1fr 1fr; }
+  header { padding: 36px 5% 30px; }
+}
+
+/* ── ENTRY ANIMATION ── */
+.card { animation: fadeUp 0.5s ease both; }
+.card:nth-child(1) { animation-delay: 0.05s; }
+.card:nth-child(2) { animation-delay: 0.10s; }
+.card:nth-child(3) { animation-delay: 0.15s; }
+.card:nth-child(4) { animation-delay: 0.20s; }
+
+.stat-item { animation: fadeUp 0.4s ease both; }
+.stat-item:nth-child(1) { animation-delay: 0.0s; }
+.stat-item:nth-child(2) { animation-delay: 0.05s; }
+.stat-item:nth-child(3) { animation-delay: 0.10s; }
+.stat-item:nth-child(4) { animation-delay: 0.15s; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-label">Government of Tamil Nadu · IT Department</div>
+  <h1>India Renewable<br>Energy Dashboard</h1>
+  <p class="header-sub">Installed capacity overview and geospatial distribution of clean energy sources across India.</p>
+  <div class="total-badge">
+    Total Installed Capacity &nbsp;·&nbsp; <span>~172 GW</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- STAT STRIP -->
+  <div class="stat-strip">
+    <div class="stat-item">
+      <div class="stat-dot" style="background:var(--solar)"></div>
+      <div class="stat-value" style="color:var(--solar)">75</div>
+      <div class="stat-label">Solar GW</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-dot" style="background:var(--wind)"></div>
+      <div class="stat-value" style="color:var(--wind)">44</div>
+      <div class="stat-label">Wind GW</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-dot" style="background:var(--hydro)"></div>
+      <div class="stat-value" style="color:var(--hydro)">46</div>
+      <div class="stat-label">Hydro GW</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-dot" style="background:var(--nuclear)"></div>
+      <div class="stat-value" style="color:var(--nuclear)">7</div>
+      <div class="stat-label">Nuclear GW</div>
+    </div>
+  </div>
+
+  <!-- ENERGY CARDS -->
+  <div class="energy-grid">
+
+    <!-- SOLAR -->
+    <div class="card" data-type="solar">
+      <div class="card-inner">
+        <div class="card-header">
+          <div class="card-icon">☀️</div>
+          <div class="card-capacity">
+            <div class="capacity-num">75 GW</div>
+            <div class="capacity-unit">Installed</div>
+          </div>
+        </div>
+        <h2>Solar Energy</h2>
+        <p>Electricity generated via photovoltaic cells. India ranks among the world's top solar markets.</p>
+        <div class="progress-wrap">
+          <div class="progress-track"><div class="progress-fill"></div></div>
+          <div class="progress-label"><span>Share of renewables</span><span>44%</span></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary" onclick="toggleDetails('solar-detail', this)">Details</button>
+          <button class="btn" onclick="showMap('solar', this)">Show Map</button>
+        </div>
+      </div>
+      <div class="details-panel" id="solar-detail">
+        <div class="detail-row">
+          <div>
+            <strong>How it works</strong>
+            <p>Photovoltaic panels absorb sunlight and convert photons into direct current (DC), then inverted to AC for grid supply.</p>
+          </div>
+          <div>
+            <strong>Key Regions</strong>
+            <p>Rajasthan, Gujarat, Andhra Pradesh, Tamil Nadu — home to large-scale solar parks including Bhadla (2.7 GW).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WIND -->
+    <div class="card" data-type="wind">
+      <div class="card-inner">
+        <div class="card-header">
+          <div class="card-icon">🌬️</div>
+          <div class="card-capacity">
+            <div class="capacity-num">44 GW</div>
+            <div class="capacity-unit">Installed</div>
+          </div>
+        </div>
+        <h2>Wind Energy</h2>
+        <p>Turbine-based power harnessing kinetic wind energy. India is the 4th largest wind power nation globally.</p>
+        <div class="progress-wrap">
+          <div class="progress-track"><div class="progress-fill"></div></div>
+          <div class="progress-label"><span>Share of renewables</span><span>26%</span></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary" onclick="toggleDetails('wind-detail', this)">Details</button>
+          <button class="btn" onclick="showMap('wind', this)">Show Map</button>
+        </div>
+      </div>
+      <div class="details-panel" id="wind-detail">
+        <div class="detail-row">
+          <div>
+            <strong>How it works</strong>
+            <p>Wind turbines use aerodynamic blades to convert wind kinetic energy into mechanical rotation, then into electricity via generators.</p>
+          </div>
+          <div>
+            <strong>Key Regions</strong>
+            <p>Tamil Nadu, Gujarat, Rajasthan, Maharashtra, Karnataka. Tamil Nadu alone contributes ~10 GW, the most in India.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HYDRO -->
+    <div class="card" data-type="hydro">
+      <div class="card-inner">
+        <div class="card-header">
+          <div class="card-icon">💧</div>
+          <div class="card-capacity">
+            <div class="capacity-num">46 GW</div>
+            <div class="capacity-unit">Installed</div>
+          </div>
+        </div>
+        <h2>Hydro Energy</h2>
+        <p>Dam-based power from flowing water. One of India's oldest and most reliable clean energy sources.</p>
+        <div class="progress-wrap">
+          <div class="progress-track"><div class="progress-fill"></div></div>
+          <div class="progress-label"><span>Share of renewables</span><span>27%</span></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary" onclick="toggleDetails('hydro-detail', this)">Details</button>
+          <button class="btn" onclick="showMap('hydro', this)">Show Map</button>
+        </div>
+      </div>
+      <div class="details-panel" id="hydro-detail">
+        <div class="detail-row">
+          <div>
+            <strong>How it works</strong>
+            <p>Potential energy stored in reservoirs is released through penstocks to spin turbines and generate electricity.</p>
+          </div>
+          <div>
+            <strong>Key Regions</strong>
+            <p>Himachal Pradesh, Uttarakhand, Arunachal Pradesh, Jammu & Kashmir — where Himalayan rivers provide immense flow.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NUCLEAR -->
+    <div class="card" data-type="nuclear">
+      <div class="card-inner">
+        <div class="card-header">
+          <div class="card-icon">⚛️</div>
+          <div class="card-capacity">
+            <div class="capacity-num">7 GW</div>
+            <div class="capacity-unit">Installed</div>
+          </div>
+        </div>
+        <h2>Nuclear Energy</h2>
+        <p>Fission-based baseload power. India targets 22 GW by 2031 under its three-stage nuclear programme.</p>
+        <div class="progress-wrap">
+          <div class="progress-track"><div class="progress-fill"></div></div>
+          <div class="progress-label"><span>Share of renewables</span><span>4%</span></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary" onclick="toggleDetails('nuclear-detail', this)">Details</button>
+          <button class="btn" onclick="showMap('nuclear', this)">Show Map</button>
+        </div>
+      </div>
+      <div class="details-panel" id="nuclear-detail">
+        <div class="detail-row">
+          <div>
+            <strong>How it works</strong>
+            <p>Uranium fuel undergoes controlled fission, generating heat to produce steam that drives turbine-generators.</p>
+          </div>
+          <div>
+            <strong>Key Plants</strong>
+            <p>Kudankulam (Tamil Nadu), Tarapur (Maharashtra), Kaiga (Karnataka), Rawatbhata (Rajasthan), Narora (UP).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MAP SECTION -->
+  <div class="map-section">
+    <div class="map-header">
+      <div class="map-title">Geospatial View</div>
+      <div class="map-filters">
+        <button class="filter-btn active" data-map="solar" onclick="showMap('solar', this)">☀️ Solar</button>
+        <button class="filter-btn" data-map="wind"  onclick="showMap('wind', this)">🌬️ Wind</button>
+        <button class="filter-btn" data-map="hydro" onclick="showMap('hydro', this)">💧 Hydro</button>
+        <button class="filter-btn" data-map="nuclear" onclick="showMap('nuclear', this)">⚛️ Nuclear</button>
+      </div>
+    </div>
+    <div class="map-frame-wrap">
+      <iframe id="mapFrame"
+        src="https://maps.google.com/maps?q=solar+power+plants+india&t=&z=5&ie=UTF8&iwloc=&output=embed"
+        allowfullscreen loading="lazy">
+      </iframe>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-brand">Renewable Energy Dashboard · India</div>
+  <div class="footer-note">Data: Ministry of New and Renewable Energy · 2024</div>
+</footer>
+
+<script>
+const mapSrc = {
+  solar:   "https://maps.google.com/maps?q=solar+power+plants+india&t=&z=5&ie=UTF8&iwloc=&output=embed",
+  wind:    "https://maps.google.com/maps?q=wind+power+plants+india&t=&z=5&ie=UTF8&iwloc=&output=embed",
+  hydro:   "https://maps.google.com/maps?q=hydroelectric+power+plants+india&t=&z=5&ie=UTF8&iwloc=&output=embed",
+  nuclear: "https://maps.google.com/maps?q=nuclear+power+plants+india&t=&z=5&ie=UTF8&iwloc=&output=embed"
+};
+
+function toggleDetails(id, btn) {
+  const panel = document.getElementById(id);
+  const isOpen = panel.classList.contains('open');
+  // close all
+  document.querySelectorAll('.details-panel').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.btn-primary').forEach(b => b.textContent = 'Details');
+  if (!isOpen) {
+    panel.classList.add('open');
+    btn.textContent = 'Hide';
+  }
+}
+
+function showMap(type, btnEl) {
+  document.getElementById('mapFrame').src = mapSrc[type];
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  // find the filter btn (could be card btn or filter btn)
+  const filterBtn = document.querySelector(`.filter-btn[data-map="${type}"]`);
+  if (filterBtn) filterBtn.classList.add('active');
+  // scroll map into view
+  document.querySelector('.map-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+</script>
+
+</body>
+</html>
